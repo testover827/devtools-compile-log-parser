@@ -1,0 +1,4 @@
+{
+  "groupA": ["src/moduleA", "src/moduleB"],
+  "groupB": ["src/moduleC"]
+}
