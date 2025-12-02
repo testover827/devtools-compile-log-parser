@@ -1,0 +1,1071 @@
+{
+    "name": "C++ 编译日志解析模式配置",
+    "version": "1.1.0",
+    "description": "用于解析GCC、Clang、MSVC等编译器输出的正则表达式模式",
+    "created": "2024-01-15",
+    "last_modified": "2024-01-20",
+    "author": "DevTools Team",
+    "repository": "https://github.com/company/devtools-compile-log-parser",
+    
+    "version_compatibility": {
+      "description": "配置版本和兼容性信息",
+      "config_version": "1.1.0",
+      "min_parser_version": "1.0.0",
+      "max_parser_version": "2.0.0",
+      "supported_compilers": [
+        {
+          "name": "gcc",
+          "min_version": "7.0.0",
+          "max_version": "13.0.0",
+          "tested_versions": ["9.4.0", "11.4.0", "12.3.0"]
+        },
+        {
+          "name": "clang",
+          "min_version": "10.0.0",
+          "max_version": "17.0.0",
+          "tested_versions": ["14.0.0", "15.0.0", "16.0.0"]
+        },
+        {
+          "name": "msvc",
+          "min_version": "2019",
+          "max_version": "2022",
+          "tested_versions": ["2019", "2022"]
+        }
+      ],
+      "backward_compatible": true
+    },
+    
+    "compiler_patterns": {
+      "description": "编译器输出正则表达式模式",
+      
+      "gcc_clang_error": {
+        "pattern": "^([^:]+):(\\d+):(?:(\\d+):)?\\s*(error|fatal error):\\s*(.+)$",
+        "description": "GCC/Clang错误格式: file:line[:column]: error: message",
+        "groups": ["file", "line", "column", "type", "message"],
+        "example": "main.cpp:25:10: error: 'x' was not declared in this scope",
+        "severity": "high",
+        "priority": 1
+      },
+      
+      "gcc_clang_warning": {
+        "pattern": "^([^:]+):(\\d+):(?:(\\d+):)?\\s*(warning|note):\\s*(.+)$",
+        "description": "GCC/Clang警告/提示格式",
+        "groups": ["file", "line", "column", "type", "message"],
+        "example": "utils.cpp:15:5: warning: unused variable 'temp' [-Wunused-variable]",
+        "severity": "medium",
+        "priority": 2
+      },
+      
+      "gcc_clang_template": {
+        "pattern": "^(.*):(\\d+):(\\d+):\\s+required from '(.*)'",
+        "description": "GCC/Clang模板实例化追踪",
+        "groups": ["file", "line", "column", "context"],
+        "example": "main.cpp:25:10:   required from 'void foo<int>()'",
+        "severity": "low",
+        "priority": 5
+      },
+      
+      "gcc_clang_included_from": {
+        "pattern": "^In file included from ([^:]+):(\\d+):",
+        "description": "包含文件追踪",
+        "groups": ["file", "line"],
+        "example": "In file included from main.cpp:10:",
+        "severity": "low",
+        "priority": 6
+      },
+      
+      "msvc_error": {
+        "pattern": "^([^(]+)\\((\\d+)(?:,(\\d+))?\\)\\s*:\\s*(error|fatal error)\\s+([A-Z]+\\d+):\\s*(.+)$",
+        "description": "MSVC错误格式: file(line[,column]): error CXXXX: message",
+        "groups": ["file", "line", "column", "type", "code", "message"],
+        "example": "main.cpp(25): error C2065: 'x': undeclared identifier",
+        "severity": "high",
+        "priority": 1
+      },
+      
+      "msvc_warning": {
+        "pattern": "^([^(]+)\\((\\d+)(?:,(\\d+))?\\)\\s*:\\s*warning\\s+([A-Z]+\\d+):\\s*(.+)$",
+        "description": "MSVC警告格式",
+        "groups": ["file", "line", "column", "type", "code", "message"],
+        "example": "utils.cpp(15): warning C4101: 'temp': unreferenced local variable",
+        "severity": "medium",
+        "priority": 2
+      },
+      
+      "make_error": {
+        "pattern": "^make(?:\\[\\d+\\])?: \\*\\*\\* \\[(.*)\\] (Error \\d+|Error)",
+        "description": "Make构建错误",
+        "groups": ["target", "type"],
+        "example": "make[2]: *** [main.o] Error 1",
+        "severity": "high",
+        "priority": 1
+      },
+      
+      "linker_error": {
+        "pattern": "undefined reference to `([^']+)'",
+        "description": "链接器错误 - 未定义引用",
+        "groups": ["symbol"],
+        "example": "undefined reference to `calculate_sum'",
+        "severity": "high",
+        "priority": 1
+      },
+      
+      "multiple_definition": {
+        "pattern": "multiple definition of `([^']+)'",
+        "description": "多重定义错误",
+        "groups": ["symbol"],
+        "example": "multiple definition of `global_counter'",
+        "severity": "high",
+        "priority": 1
+      },
+      
+      "include_error": {
+        "pattern": "([^:]+):(\\d+):(\\d+): fatal error: ([^:]+): No such file or directory",
+        "description": "头文件找不到错误",
+        "groups": ["file", "line", "column", "missing_header"],
+        "example": "main.cpp:10:10: fatal error: 'missing.h': No such file or directory",
+        "severity": "high",
+        "priority": 1
+      },
+      
+      "compiler_internal_error": {
+        "pattern": "internal compiler error:.*",
+        "description": "编译器内部错误",
+        "groups": [],
+        "example": "internal compiler error: Segmentation fault",
+        "severity": "critical",
+        "priority": 0
+      }
+    },
+    
+    "compiler_prefixes": {
+      "description": "需要去除的编译器输出前缀",
+      "patterns": [
+        {
+          "pattern": "^file://",
+          "description": "file://协议前缀",
+          "action": "remove"
+        },
+        {
+          "pattern": "^In file included from ",
+          "description": "包含文件前缀",
+          "action": "remove"
+        },
+        {
+          "pattern": "^\\s+from ",
+          "description": "模板实例化追踪前缀",
+          "action": "remove"
+        },
+        {
+          "pattern": "^\\s*",
+          "description": "前导空格",
+          "action": "trim"
+        }
+      ]
+    },
+    
+    "path_normalization": {
+      "description": "路径规范化规则",
+      "rules": [
+        {
+          "pattern": "^/home/[^/]+/workspace/[^/]+",
+          "replacement": "${workspace}",
+          "description": "标准化工作空间路径"
+        },
+        {
+          "pattern": "^/build/[^/]+/",
+          "replacement": "${build_dir}/",
+          "description": "标准化构建目录路径"
+        },
+        {
+          "pattern": "//+",
+          "replacement": "/",
+          "description": "合并多个斜杠"
+        },
+        {
+          "pattern": "/\\./",
+          "replacement": "/",
+          "description": "移除当前目录引用"
+        },
+        {
+          "pattern": "/([^/]+)/\\.\\./",
+          "replacement": "/",
+          "description": "解析父目录引用"
+        }
+      ],
+      "variables": {
+        "workspace": "工作空间根目录",
+        "build_dir": "构建输出目录",
+        "third_party": "第三方库目录"
+      }
+    },
+    
+    "path_aliases": {
+      "description": "路径别名映射，将不同环境下的路径统一",
+      "aliases": [
+        {
+          "pattern": "^/home/jenkins/workspace/[^/]+",
+          "replacement": "${workspace}",
+          "description": "Jenkins工作空间路径"
+        },
+        {
+          "pattern": "^/build/[^/]+/build",
+          "replacement": "${build_dir}",
+          "description": "构建目录路径"
+        },
+        {
+          "pattern": "^.*/(third_party|vendor|external)/",
+          "replacement": "${third_party}/",
+          "description": "第三方库路径"
+        },
+        {
+          "pattern": "^.*/test_",
+          "replacement": "${test_dir}/",
+          "description": "测试目录路径"
+        }
+      ]
+    },
+    
+    "error_categories": {
+      "description": "错误代码分类，便于统计和分析",
+      "categories": {
+        "syntax": {
+          "patterns": [
+            "expected.*", 
+            "missing.*", 
+            "invalid.*", 
+            "parse error",
+            "expected ';'",
+            "expected '\\('"
+          ],
+          "severity": "high",
+          "priority": 1,
+          "description": "语法错误"
+        },
+        "type": {
+          "patterns": [
+            "cannot convert.*", 
+            "invalid conversion.*", 
+            "no matching function",
+            "incompatible types",
+            "invalid operands"
+          ],
+          "severity": "high",
+          "priority": 2,
+          "description": "类型错误"
+        },
+        "linker": {
+          "patterns": [
+            "undefined reference.*", 
+            "multiple definition.*", 
+            "undefined symbol",
+            "cannot find -l"
+          ],
+          "severity": "high",
+          "priority": 1,
+          "description": "链接错误"
+        },
+        "warning_deprecated": {
+          "patterns": [
+            "deprecated.*", 
+            "is deprecated",
+            "will be removed"
+          ],
+          "severity": "medium",
+          "priority": 3,
+          "description": "废弃警告"
+        },
+        "warning_unused": {
+          "patterns": [
+            "unused.*", 
+            "set but not used",
+            "unreferenced",
+            "unused parameter"
+          ],
+          "severity": "low",
+          "priority": 4,
+          "description": "未使用警告"
+        },
+        "warning_format": {
+          "patterns": [
+            "format.*", 
+            "too many arguments",
+            "scalar"
+          ],
+          "severity": "medium",
+          "priority": 3,
+          "description": "格式字符串警告"
+        },
+        "note": {
+          "patterns": [
+            "note:.*", 
+            "candidate:",
+            "in instantiation"
+          ],
+          "severity": "low",
+          "priority": 5,
+          "description": "信息提示"
+        }
+      }
+    },
+    
+    "severity_rules": {
+      "description": "问题严重程度判定规则",
+      
+      "high_severity_keywords": [
+        "error", 
+        "fatal", 
+        "undefined", 
+        "multiple definition",
+        "no such file", 
+        "cannot find", 
+        "expected", 
+        "missing",
+        "redefinition", 
+        "conflicting", 
+        "ambiguous", 
+        "illegal",
+        "invalid", 
+        "no match", 
+        "expected unqualified-id",
+        "segmentation fault",
+        "internal compiler"
+      ],
+      
+      "medium_severity_keywords": [
+        "warning", 
+        "deprecated", 
+        "unused", 
+        "suggest",
+        "discards", 
+        "overflow", 
+        "comparison", 
+        "conversion",
+        "ignored", 
+        "uninitialized", 
+        "unsequenced",
+        "shadow",
+        "may be used"
+      ],
+      
+      "low_severity_keywords": [
+        "note", 
+        "info", 
+        "remark", 
+        "candidate",
+        "included from", 
+        "instantiated from", 
+        "required from",
+        "debug",
+        "optimization"
+      ],
+      
+      "severity_override": [
+        {
+          "issue_pattern": "warning: .*deprecated.*copy.*",
+          "severity": "high",
+          "reason": "弃用的拷贝警告通常是严重的设计问题",
+          "priority": 1
+        },
+        {
+          "issue_pattern": "error: .*static_assert.*failed",
+          "severity": "high",
+          "reason": "静态断言失败是编译时错误",
+          "priority": 1
+        },
+        {
+          "issue_pattern": "note: .*candidate.*",
+          "severity": "low",
+          "reason": "候选函数提示信息性较低",
+          "priority": 5
+        },
+        {
+          "issue_pattern": "warning: .*delete.*non-virtual.*destructor",
+          "severity": "high",
+          "reason": "非虚析构函数的删除可能导致未定义行为",
+          "priority": 1
+        }
+      ]
+    },
+    
+    "ignore_patterns": {
+      "description": "需要忽略的日志行模式",
+      "patterns": [
+        "^\\s*$",                      # 空行
+        "^\\[.*\\].*",                 # [DEBUG] 等日志前缀
+        "^Note: .*",                   # 纯提示信息
+        "^Configured with:.*",         # 编译器配置信息
+        "^Using built-in specs.*",     # GCC配置
+        "^Thread model:.*",            # 线程模型信息
+        "^Target:.*",                  # 目标平台信息
+        "^Reading specs from.*",       # 读取配置
+        "^gcc version.*",              # 编译器版本
+        "^clang version.*",            # Clang版本
+        "^Copyright.*",                # 版权信息
+        "^This is free software.*",    # 软件许可信息
+        "^Compilation finished.*",     # 编译完成信息
+        "^Total time.*",               # 耗时信息
+        "^\\s*-+\\s*$",                # 分隔线
+        "^\\s*Done\\s*$",              # 完成提示
+        "^\\s*OK\\s*$",                # 成功提示
+        "^\\[\\s*\\d+%\\] .*",         # 构建进度信息
+        "^-- .*",                      # CMake信息
+        "^Scanning dependencies.*",    # 依赖扫描
+        "^Building.*object.*",         # 构建对象信息
+        "^Linking.*",                  # 链接信息
+        "^Installing.*",               # 安装信息
+        "^-- Configuring done.*",      # CMake配置完成
+        "^-- Generating done.*",       # CMake生成完成
+        "^-- Build files.*",           # CMake构建文件
+        "^make(?:\\[\\d+\\])?: Entering directory.*",  # make进入目录
+        "^make(?:\\[\\d+\\])?: Leaving directory.*"    # make离开目录
+      ],
+      "case_sensitive": false
+    },
+    
+    "file_extensions": {
+      "description": "文件扩展名分类",
+      
+      "c_cpp_files": [
+        ".c", ".cc", ".cpp", ".cxx", ".c++",
+        ".h", ".hh", ".hpp", ".hxx", ".inc",
+        ".inl", ".ipp", ".tcc", ".tpp"
+      ],
+      
+      "make_files": [
+        "Makefile", "makefile", "GNUmakefile", 
+        "*.mk", "*.mak", "*.make"
+      ],
+      
+      "resource_files": [
+        ".qrc", ".ui", ".rc", ".resx",
+        ".res", ".ico", ".cur", ".bmp"
+      ],
+      
+      "script_files": [
+        "CMakeLists.txt", "*.cmake", "*.py", 
+        "*.sh", "*.bash", "*.bat", "*.ps1"
+      ],
+      
+      "config_files": [
+        "*.json", "*.yml", "*.yaml", 
+        "*.toml", "*.ini", "*.cfg", "*.conf"
+      ],
+      
+      "documentation_files": [
+        "*.md", "*.txt", "*.rst", 
+        "*.tex", "*.doc", "*.docx"
+      ]
+    },
+    
+    "confidence_calculator": {
+      "description": "代码修改与编译问题匹配的置信度计算",
+      
+      "weights": {
+        "exact_line_match": 0.5,
+        "near_line_match": 0.3,
+        "same_file_match": 0.4,
+        "keyword_match": 0.05,
+        "issue_severity": {
+          "critical": 0.4,
+          "high": 0.3,
+          "medium": 0.2,
+          "low": 0.1
+        },
+        "change_type": {
+          "added": 0.8,
+          "modified": 0.6,
+          "deleted": 0.4
+        },
+        "pattern_match": 0.2
+      },
+      
+      "thresholds": {
+        "high_confidence": 0.7,
+        "medium_confidence": 0.4,
+        "low_confidence": 0.2,
+        "minimum_confidence": 0.1
+      },
+      
+      "near_line_threshold": 5,
+      "max_keyword_matches": 3,
+      "enable_fuzzy_matching": true
+    },
+    
+    "ignored_files": {
+      "description": "需要忽略的文件模式（支持 glob 模式）",
+      
+      "patterns": [
+        "**/third_party/**",           # 忽略所有第三方库文件
+        "**/test/**/*.cpp",            # 忽略测试文件
+        "**/generated/**",             # 忽略生成的文件
+        "**/*_mock.cpp",               # 忽略模拟文件
+        "**/*_test.cpp",               # 忽略测试文件
+        "**/build/**",                 # 忽略构建目录
+        "**/.cache/**",                # 忽略缓存目录
+        "**/external/**",              # 忽略外部依赖
+        "**/vendor/**",                # 忽略供应商代码
+        "**/*.pb.cc",                  # 忽略 Protocol Buffers 生成的文件
+        "**/*.grpc.pb.cc",             # 忽略 gRPC 生成的文件
+        "**/moc_*.cpp",                # 忽略 Qt 的 moc 生成文件
+        "**/qrc_*.cpp",                # 忽略 Qt 的资源文件
+        "**/.git/**",                  # Git目录
+        "**/node_modules/**",          # Node.js模块
+        "**/__pycache__/**",           # Python缓存
+        "**/*.swp",                    # Vim交换文件
+        "**/.DS_Store",                # macOS系统文件
+        "**/tmp/**",                   # 临时目录
+        "**/logs/**",                  # 日志目录
+        "**/output/**",                # 输出目录
+        "**/coverage/**",              # 覆盖率报告
+        "**/profiling/**",             # 性能分析数据
+        "**/.vscode/**",               # VSCode配置
+        "**/.idea/**",                 # IDEA配置
+        "**/.vs/**",                   # Visual Studio配置
+        "**/x64/**",                   # VS x64输出
+        "**/Debug/**",                 # 调试版本输出
+        "**/Release/**",               # 发布版本输出
+        "**/.deps/**",                 # 依赖文件
+        "**/.libs/**",                 # 库文件
+        "**/.objs/**"                  # 对象文件
+      ],
+      
+      "exceptions": [
+        "**/third_party/catch2/**",    # 不忽略 Catch2 测试框架
+        "**/test/main.cpp",            # 不忽略测试主文件
+        "**/third_party/googletest/**",# Google Test框架
+        "**/third_party/benchmark/**", # Google Benchmark
+        "**/test/unit_tests/**",       # 单元测试目录
+        "**/external/docs/**",         # 外部文档
+        "**/vendor/LICENSE*"           # 许可证文件
+      ],
+      
+      "auto_detect_patterns": true,
+      "validation": {
+        "require_reason": false,
+        "max_patterns_per_file": 20,
+        "allow_recursive": true,
+        "max_depth": 10
+      },
+      
+      "categories": {
+        "third_party": "第三方库文件",
+        "generated": "生成的文件",
+        "test": "测试文件",
+        "build": "构建输出",
+        "config": "配置文件",
+        "temp": "临时文件"
+      }
+    },
+    
+    "ignored_issues": {
+      "description": "需要忽略的特定编译问题",
+      
+      "patterns": [
+        {
+          "id": "IGN-001",
+          "file_pattern": "**/third_party/**",
+          "issue_pattern": ".*",
+          "reason": "第三方库代码，不检查",
+          "severity": "all",
+          "category": "third_party",
+          "created": "2024-01-15",
+          "author": "system",
+          "expires": null,
+          "review_frequency": "yearly",
+          "active": true
+        },
+        {
+          "id": "IGN-002",
+          "file_pattern": "**/*.c",
+          "issue_pattern": "warning:.*ISO C.*",
+          "reason": "C语言的ISO标准警告",
+          "severity": "medium",
+          "category": "language_specific",
+          "created": "2024-01-15",
+          "expires": null,
+          "review_frequency": "yearly",
+          "active": true
+        },
+        {
+          "id": "IGN-003",
+          "file_pattern": "**/legacy/**",
+          "issue_pattern": "warning:.*deprecated.*",
+          "reason": "遗留代码允许使用废弃API",
+          "severity": "medium",
+          "category": "legacy_code",
+          "created": "2024-01-15",
+          "expires": "2025-12-31",
+          "review_frequency": "quarterly",
+          "active": true
+        },
+        {
+          "id": "IGN-004",
+          "file_pattern": "**/*",
+          "issue_pattern": "warning: .*unused.*parameter.*",
+          "reason": "未使用参数警告，可通过[[maybe_unused]]处理",
+          "severity": "medium",
+          "category": "style",
+          "created": "2024-01-15",
+          "expires": null,
+          "review_frequency": "quarterly",
+          "active": true
+        },
+        {
+          "id": "IGN-005",
+          "file_pattern": "**/generated/**",
+          "issue_pattern": "warning: .*override.*",
+          "reason": "生成代码中的override警告",
+          "severity": "low",
+          "category": "generated_code",
+          "created": "2024-01-15",
+          "expires": null,
+          "review_frequency": "yearly",
+          "active": true
+        },
+        {
+          "id": "IGN-006",
+          "file_pattern": "src/compat/win32_*.cpp",
+          "issue_pattern": "error: .*WIN32.*not.*declared",
+          "reason": "Windows专用代码在Linux上编译",
+          "severity": "high",
+          "category": "platform_specific",
+          "platforms": ["linux"],
+          "created": "2024-01-15",
+          "expires": null,
+          "review_frequency": "yearly",
+          "active": true
+        },
+        {
+          "id": "IGN-007",
+          "file_pattern": "**/*",
+          "issue_pattern": "note: .*candidate.*",
+          "reason": "候选函数提示，信息性较低",
+          "severity": "low",
+          "category": "info",
+          "created": "2024-01-15",
+          "expires": null,
+          "review_frequency": "yearly",
+          "active": true
+        },
+        {
+          "id": "IGN-008",
+          "file_pattern": "**/test/**",
+          "issue_pattern": "warning: .*unused.*",
+          "reason": "测试代码中允许未使用的变量",
+          "severity": "low",
+          "category": "test_code",
+          "created": "2024-01-15",
+          "expires": null,
+          "review_frequency": "yearly",
+          "active": true
+        },
+        {
+          "id": "IGN-009",
+          "file_pattern": "**/*",
+          "issue_pattern": "warning: .*deprecated.*copy.*",
+          "reason": "已知问题，正在逐步重构",
+          "severity": "medium",
+          "category": "refactoring",
+          "created": "2024-01-15",
+          "expires": "2024-12-31",
+          "review_frequency": "monthly",
+          "active": true
+        },
+        {
+          "id": "IGN-010",
+          "file_pattern": "**/external/old_lib/**",
+          "issue_pattern": "error: .*C\\+\\+11.*",
+          "reason": "旧库不支持C++11，但功能正常",
+          "severity": "high",
+          "category": "external_dependency",
+          "created": "2024-01-15",
+          "expires": "2024-06-30",
+          "review_frequency": "monthly",
+          "active": true
+        }
+      ],
+      
+      "categories": {
+        "third_party": "第三方库问题",
+        "platform_specific": "平台特定问题",
+        "generated_code": "生成代码问题",
+        "style": "代码风格问题",
+        "info": "信息性提示",
+        "test_code": "测试代码问题",
+        "legacy_code": "遗留代码问题",
+        "refactoring": "重构期间的问题",
+        "external_dependency": "外部依赖问题",
+        "language_specific": "语言特定问题"
+      },
+      
+      "validation": {
+        "require_id": true,
+        "require_reason": true,
+        "require_author": true,
+        "allow_temporary": true,
+        "max_expiry_days": 365,
+        "auto_deactivate_expired": true,
+        "require_review": true,
+        "default_review_frequency": "quarterly"
+      },
+      
+      "management": {
+        "auto_suggest_rules": true,
+        "suggest_threshold": 5,
+        "archive_inactive_rules": true,
+        "max_rules_per_category": 50,
+        "notification_on_expiry": true
+      }
+    },
+    
+    "smart_ignore_suggestions": {
+      "description": "基于统计的智能忽略建议规则",
+      
+      "rules": [
+        {
+          "condition": {
+            "file_pattern": "**/*",
+            "issue_pattern": "warning: .*unused.*parameter.*",
+            "min_occurrences": 10,
+            "max_severity": "medium",
+            "time_window_days": 30
+          },
+          "suggestion": {
+            "action": "suggest_ignore",
+            "reason": "频繁出现的未使用参数警告",
+            "confidence": 0.8,
+            "alternative": "考虑使用[[maybe_unused]]或(void)parameter",
+            "template": {
+              "file_pattern": "${file_pattern}",
+              "issue_pattern": "${issue_pattern}",
+              "reason": "${reason}",
+              "severity": "medium",
+              "category": "style"
+            }
+          }
+        },
+        {
+          "condition": {
+            "file_pattern": "**/third_party/**",
+            "issue_pattern": ".*",
+            "min_occurrences": 3,
+            "time_window_days": 7
+          },
+          "suggestion": {
+            "action": "auto_ignore",
+            "reason": "第三方库问题",
+            "confidence": 0.95,
+            "template": {
+              "file_pattern": "${file_pattern}",
+              "issue_pattern": "${issue_pattern}",
+              "reason": "第三方库代码，不检查",
+              "severity": "all",
+              "category": "third_party"
+            }
+          }
+        },
+        {
+          "condition": {
+            "file_pattern": "**/generated/**",
+            "issue_pattern": "warning: .*",
+            "min_occurrences": 5,
+            "time_window_days": 14
+          },
+          "suggestion": {
+            "action": "suggest_ignore",
+            "reason": "生成代码中的警告",
+            "confidence": 0.7,
+            "alternative": "检查生成工具配置",
+            "template": {
+              "file_pattern": "${file_pattern}",
+              "issue_pattern": "${issue_pattern}",
+              "reason": "生成代码警告",
+              "severity": "low",
+              "category": "generated_code"
+            }
+          }
+        }
+      ],
+      
+      "enabled": true,
+      "min_confidence": 0.6,
+      "auto_apply": false,
+      "require_approval": true,
+      "notification_channel": "code-review"
+    },
+    
+    "report_config": {
+      "description": "报告生成配置",
+      
+      "general": {
+        "max_issues_per_report": 1000,
+        "truncate_long_messages": true,
+        "max_message_length": 500,
+        "include_code_snippet": true,
+        "max_snippet_lines": 5,
+        "include_ignored_summary": true,
+        "include_config_summary": true,
+        "timestamp_format": "%Y-%m-%d %H:%M:%S",
+        "timezone": "UTC"
+      },
+      
+      "grouping": {
+        "group_by": ["file", "severity", "category"],
+        "sort_by": ["severity", "confidence", "file"],
+        "sort_order": "desc",
+        "collapse_groups": true,
+        "max_items_per_group": 50
+      },
+      
+      "export": {
+        "formats": ["json", "html", "markdown", "csv"],
+        "default_format": "html",
+        "compression": true,
+        "split_large_reports": true,
+        "max_file_size_mb": 10
+      },
+      
+      "charts": {
+        "enabled": true,
+        "types": ["pie", "bar", "trend", "sunburst"],
+        "show_severity_distribution": true,
+        "show_pattern_distribution": true,
+        "show_category_distribution": true,
+        "show_trend_over_time": true,
+        "chart_colors": {
+          "critical": "#d32f2f",
+          "high": "#f57c00",
+          "medium": "#fbc02d",
+          "low": "#388e3c"
+        }
+      },
+      
+      "notifications": {
+        "enabled": true,
+        "channels": ["email", "slack", "teams"],
+        "thresholds": {
+          "critical": 1,
+          "high": 3,
+          "medium": 10,
+          "low": 50
+        },
+        "recipients": ["dev-team@company.com", "qa-team@company.com"],
+        "frequency": "immediate"
+      },
+      
+      "templates": {
+        "html": "templates/report.html.j2",
+        "markdown": "templates/report.md.j2",
+        "email": "templates/email.html.j2"
+      }
+    },
+    
+    "performance": {
+      "description": "性能优化配置",
+      
+      "parsing": {
+        "max_concurrent_parsers": 4,
+        "chunk_size_lines": 1000,
+        "stream_parsing": true,
+        "early_exit_on_fatal": false
+      },
+      
+      "caching": {
+        "enabled": true,
+        "cache_ttl_seconds": 3600,
+        "max_cache_size_mb": 1000,
+        "cache_dir": "${workspace}/.cache/compile-analyzer",
+        "compress_cache": true
+      },
+      
+      "limits": {
+        "max_log_file_size_mb": 100,
+        "max_issues_per_file": 10000,
+        "max_files_to_process": 1000,
+        "timeout_seconds": 300
+      },
+      
+      "memory": {
+        "max_memory_mb": 2048,
+        "gc_threshold": 0.8,
+        "buffer_size_kb": 4096
+      }
+    },
+    
+    "validation": {
+      "description": "配置验证规则",
+      
+      "schema": {
+        "enforce_schema": true,
+        "schema_version": "1.1",
+        "allow_unknown_fields": false,
+        "strict_mode": false
+      },
+      
+      "patterns": {
+        "check_pattern_validity": true,
+        "test_patterns_on_load": true,
+        "warn_on_invalid_pattern": true,
+        "max_pattern_test_samples": 10
+      },
+      
+      "files": {
+        "check_file_existence": false,
+        "resolve_paths": true,
+        "warn_on_missing_files": true
+      },
+      
+      "logging": {
+        "level": "INFO",
+        "format": "json",
+        "output": "file",
+        "log_file": "${workspace}/logs/config-validator.log",
+        "max_log_size_mb": 10
+      }
+    },
+    
+    "debug": {
+      "description": "调试和开发配置",
+      
+      "logging": {
+        "enabled": false,
+        "level": "DEBUG",
+        "log_pattern_matching": false,
+        "log_ignore_decisions": false,
+        "log_performance": false
+      },
+      
+      "profiling": {
+        "enabled": false,
+        "profile_pattern_matching": false,
+        "profile_file_io": false,
+        "output_dir": "${workspace}/profiling"
+      },
+      
+      "testing": {
+        "test_patterns": true,
+        "test_files": [
+          "samples/compile_errors.log",
+          "samples/compile_warnings.log"
+        ],
+        "expected_results": "samples/expected_results.json"
+      },
+      
+      "development": {
+        "hot_reload": true,
+        "watch_config_changes": true,
+        "auto_test_on_change": true,
+        "notify_on_error": true
+      }
+    },
+    
+    "integrations": {
+      "description": "外部系统集成配置",
+      
+      "version_control": {
+        "git": {
+          "enabled": true,
+          "blame_enabled": true,
+          "diff_context_lines": 3,
+          "include_commit_messages": true
+        },
+        "svn": {
+          "enabled": false
+        }
+      },
+      
+      "ci_cd": {
+        "jenkins": {
+          "enabled": true,
+          "job_name_pattern": ".*",
+          "build_parameters": ["BRANCH", "TARGET"]
+        },
+        "gitlab": {
+          "enabled": true,
+          "merge_request_analysis": true,
+          "auto_comment": true
+        },
+        "github": {
+          "enabled": true,
+          "pull_request_analysis": true,
+          "status_checks": true
+        }
+      },
+      
+      "issue_tracking": {
+        "jira": {
+          "enabled": false,
+          "project_key": "DEV",
+          "issue_type": "Bug"
+        },
+        "github_issues": {
+          "enabled": true,
+          "labels": ["compiler-warning", "static-analysis"]
+        }
+      },
+      
+      "communication": {
+        "slack": {
+          "enabled": true,
+          "channel": "#code-quality",
+          "webhook": "${SLACK_WEBHOOK_URL}"
+        },
+        "teams": {
+          "enabled": false
+        },
+        "email": {
+          "enabled": true,
+          "smtp_server": "smtp.company.com",
+          "from_address": "code-analyzer@company.com"
+        }
+      },
+      
+      "monitoring": {
+        "prometheus": {
+          "enabled": true,
+          "port": 9091,
+          "metrics_prefix": "compile_analyzer_"
+        },
+        "grafana": {
+          "enabled": true,
+          "dashboard_id": "compile-analysis"
+        }
+      }
+    },
+    
+    "security": {
+      "description": "安全相关配置",
+      
+      "authentication": {
+        "require_auth": false,
+        "auth_type": "jwt",
+        "token_ttl_hours": 24
+      },
+      
+      "authorization": {
+        "role_based_access": true,
+        "roles": {
+          "admin": ["*"],
+          "developer": ["read", "analyze"],
+          "viewer": ["read"]
+        }
+      },
+      
+      "data_protection": {
+        "mask_sensitive_data": true,
+        "sensitive_patterns": [
+          "password.*=.*",
+          "api_key.*=.*",
+          "token.*=.*"
+        ],
+        "encrypt_cache": false
+      },
+      
+      "audit": {
+        "log_access": true,
+        "log_config_changes": true,
+        "retention_days": 90
+      }
+    }
+  }
